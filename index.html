@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日越音声翻訳</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .glass-effect { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const API_KEY = "YOUR_API_KEY"; // ここにAPIキーを入力してください
+        const MODEL_NAME = "gemini-2.0-flash"; 
+
+        function TranslatorApp() {
+            const [isRecording, setIsRecording] = useState(false);
+            const [sourceText, setSourceText] = useState('');
+            const [translatedText, setTranslatedText] = useState('');
+            const [isProcessing, setIsProcessing] = useState(false);
+            const [error, setError] = useState(null);
+            const [mode, setMode] = useState('ja-to-vi'); // ja-to-vi または vi-to-ja
+            
+            const recognitionRef = useRef(null);
+
+            useEffect(() => {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) {
+                    setError("ブラウザが音声認識に対応していません。");
+                    return;
+                }
+                const recognition = new SpeechRecognition();
+                recognition.lang = mode === 'ja-to-vi' ? 'ja-JP' : 'vi-VN';
+                recognition.onresult = (event) => {
+                    const text = event.results[0][0].transcript;
+                    setSourceText(text);
+                    processTranslation(text);
+                };
+                recognition.onend = () => setIsRecording(false);
+                recognitionRef.current = recognition;
+            }, [mode]);
+
+            const processTranslation = async (text) => {
+                setIsProcessing(true);
+                try {
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`;
+                    const targetLang = mode === 'ja-to-vi' ? "Vietnamese" : "Japanese";
+                    
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ role: "user", parts: [{ text: `Translate to ${targetLang}. Output ONLY the translated text: ${text}` }] }]
+                        })
+                    });
+                    const data = await response.json();
+                    setTranslatedText(data.candidates[0].content.parts[0].text);
+                } catch (err) {
+                    setError("翻訳エラーが発生しました。");
+                } finally {
+                    setIsProcessing(false);
+                }
+            };
+
+            const toggleRecording = (targetMode) => {
+                setMode(targetMode);
+                setSourceText('');
+                setTranslatedText('');
+                recognitionRef.current.lang = targetMode === 'ja-to-vi' ? 'ja-JP' : 'vi-VN';
+                recognitionRef.current.start();
+                setIsRecording(true);
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4">
+                    <div className="max-w-md w-full glass-effect rounded-[3rem] shadow-2xl p-8 space-y-6">
+                        <h1 className="text-2xl font-black text-center text-indigo-600">日越音声翻訳</h1>
+                        
+                        <div className="p-4 bg-white rounded-2xl border">
+                            <p className="text-xs text-slate-400">{mode === 'ja-to-vi' ? '日本語' : 'Tiếng Việt'}</p>
+                            <p className="font-bold">{sourceText || "..."}</p>
+                        </div>
+                        
+                        <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                            <p className="text-xs text-indigo-400">{mode === 'ja-to-vi' ? 'Tiếng Việt' : '日本語'}</p>
+                            <p className="font-bold text-indigo-900">{translatedText || (isProcessing ? "翻訳中..." : "...")}</p>
+                        </div>
+
+                        <div className="flex justify-center gap-4">
+                            {/* 日本語→ベトナム語ボタン */}
+                            <button onClick={() => toggleRecording('ja-to-vi')} className="bg-indigo-600 p-6 rounded-full text-white shadow-lg">
+                                JP → VI
+                            </button>
+                            {/* ベトナム語→日本語（赤マイク）ボタン */}
+                            <button onClick={() => toggleRecording('vi-to-ja')} className="bg-red-500 p-6 rounded-full text-white shadow-lg">
+                                VI → JP
+                            </button>
+                        </div>
+                        {error && <p className="text-red-500 text-center text-sm">{error}</p>}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<TranslatorApp />);
+    </script>
+</body>
+</html>
