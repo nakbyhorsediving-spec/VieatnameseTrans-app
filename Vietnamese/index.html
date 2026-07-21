@@ -12,8 +12,6 @@
     <div id="root"></div>
     <script type="text/babel">
         const { useState } = React;
-        // 一文字の漏れもなくコピーしてください
-        const API_KEY = ""; 
 
         function TranslatorApp() {
             const [sourceText, setSourceText] = useState('');
@@ -25,21 +23,20 @@
                 setIsProcessing(true);
                 try {
                     const instruction = targetLang === 'vi' ? "Translate to Vietnamese." : "Translate to Japanese.";
-                    // URLをより単純化しました
-                    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
                     
-                    const response = await fetch(url, {
+                    // ブラウザから直接Googleを叩くのではなく、自分のサーバー（/translate）へリクエストを送る
+                    const response = await fetch('/translate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{ role: "user", parts: [{ text: `${instruction} ${text}` }] }]
-                        })
+                        body: JSON.stringify({ text: `${instruction} ${text}` })
                     });
 
                     const data = await response.json();
-                    if (data.error) throw new Error(data.error.message);
+                    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
 
-                    setTranslatedText(data.candidates[0].content.parts[0].text.trim());
+                    // サーバー経由で返ってきたレスポンス構造からテキストを取り出す
+                    const translated = data.candidates[0].content.parts[0].text.trim();
+                    setTranslatedText(translated);
                 } catch (err) {
                     setTranslatedText("Error: " + err.message);
                 } finally {
@@ -49,7 +46,7 @@
 
             return (
                 <div className="p-8">
-                    <p className="text-gray-400 text-xs mb-2">Version: 1.0.5</p>
+                    <p className="text-gray-400 text-xs mb-2">Version: 1.13</p>
                     <input 
                         value={sourceText} 
                         onChange={(e) => setSourceText(e.target.value)} 
