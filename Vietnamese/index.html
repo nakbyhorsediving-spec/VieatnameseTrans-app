@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Translator</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState } = React;
+        // 一文字の漏れもなくコピーしてください
+        const API_KEY = ""; 
+
+        function TranslatorApp() {
+            const [sourceText, setSourceText] = useState('');
+            const [translatedText, setTranslatedText] = useState('');
+            const [isProcessing, setIsProcessing] = useState(false);
+            
+            const processTranslation = async (text, targetLang) => {
+                if (!text) return;
+                setIsProcessing(true);
+                try {
+                    const instruction = targetLang === 'vi' ? "Translate to Vietnamese." : "Translate to Japanese.";
+                    // URLをより単純化しました
+                    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+                    
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ role: "user", parts: [{ text: `${instruction} ${text}` }] }]
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.error) throw new Error(data.error.message);
+
+                    setTranslatedText(data.candidates[0].content.parts[0].text.trim());
+                } catch (err) {
+                    setTranslatedText("Error: " + err.message);
+                } finally {
+                    setIsProcessing(false);
+                }
+            };
+
+            return (
+                <div className="p-8">
+                    <p className="text-gray-400 text-xs mb-2">Version: 1.0.5</p>
+                    <input 
+                        value={sourceText} 
+                        onChange={(e) => setSourceText(e.target.value)} 
+                        className="border p-2 w-full"
+                        placeholder="入力してボタン押下" 
+                    />
+                    <div className="mt-4 p-4 bg-gray-100">{isProcessing ? "Processing..." : (translatedText || "...")}</div>
+                    <button onClick={() => processTranslation(sourceText, 'vi')} className="mt-4 bg-blue-500 text-white p-2">JA → VI</button>
+                    <button onClick={() => processTranslation(sourceText, 'ja')} className="mt-4 bg-red-500 text-white p-2 ml-2">VI → JA</button>
+                </div>
+            );
+        }
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<TranslatorApp />);
+    </script>
+</body>
+</html>
