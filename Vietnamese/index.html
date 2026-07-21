@@ -24,7 +24,6 @@
                 try {
                     const instruction = targetLang === 'vi' ? "Translate to Vietnamese." : "Translate to Japanese.";
                     
-                    // ブラウザから直接Googleを叩くのではなく、自分のサーバー（/translate）へリクエストを送る
                     const response = await fetch('/translate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -34,7 +33,6 @@
                     const data = await response.json();
                     if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
 
-                    // サーバー経由で返ってきたレスポンス構造からテキストを取り出す
                     const translated = data.candidates[0].content.parts[0].text.trim();
                     setTranslatedText(translated);
                 } catch (err) {
